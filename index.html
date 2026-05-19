@@ -5,8 +5,8 @@
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <title>Employee Disciplinary Action Tracker</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" crossorigin="anonymous"></script>
+<script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js" crossorigin="anonymous"></script>
 <style>
     :root {
       --dark-color: #156082;
@@ -338,7 +338,7 @@
 <div id="configBanner">
 <h4>⚙️ Setup Required</h4>
 <p>Please open this file in a text editor and fill in your Azure App details at the top of the &lt;script&gt; section:</p>
-<p><code>AZURE_CLIENT_ID</code> — your Azure App Registration Client ID</p>
+<p><code>AZURE_CLIENT_ID</code> — '643b2076-3181-4c2e-851b-844f1b8a9394'</p>
 <p><code>AZURE_TENANT_ID</code> — your Azure Tenant ID (or <code>common</code> for personal accounts)</p>
 <p><code>ONEDRIVE_FILE_PATH</code> — path to your Excel file in OneDrive (e.g. <code>DisciplinaryTracker.xlsx</code>)</p>
 <p style="margin-top:8px;">See the included <strong>SETUP-GUIDE.txt</strong> for step-by-step instructions.</p>
@@ -740,7 +740,7 @@
 // ╚══════════════════════════════════════════════════════════════════╝
 const CONFIG = {
   // Azure App Registration — from portal.azure.com
-  AZURE_CLIENT_ID:  '643b2076-3181-4c2e-851b-844f1b8a9394',       // e.g. 'a1b2c3d4-...'
+  AZURE_CLIENT_ID:  'YOUR_CLIENT_ID_HERE',       // e.g. 'a1b2c3d4-...'
   AZURE_TENANT_ID:  'common',                    // 'common' works for personal M365 Family
 
   // OneDrive Excel file path (relative to your OneDrive root)
@@ -751,11 +751,45 @@ const CONFIG = {
   // Redirect URI — must match exactly what you register in Azure
   // When hosted in Teams: use the full URL of this HTML file
   // When opened locally: use 'http://localhost' or file path
-  REDIRECT_URI: 'https://hbunion.github.io/disciplinary-tracker/',
+  REDIRECT_URI: window.location.href.split('?')[0].split('#')[0],
 };
 // ╔══════════════════════════════════════════════════════════════════╗
 // ║                    END OF CONFIGURATION                          ║
 // ╚══════════════════════════════════════════════════════════════════╝
+
+
+// ============================================================
+//  DATA (defaults — overwritten by OneDrive on login)
+// ============================================================
+let users = [
+  { id: 1, username: 'Admin1',  password: 'abcd', role: 'ADMIN', updatedBy: 'Admin1',  updatedAt: '14-Jan-2024 09:10:22 AM' },
+  { id: 2, username: 'Terry',   password: '1206', role: 'USER',  updatedBy: 'admin1',  updatedAt: '18-May-2026 02:44:32 PM' },
+  { id: 3, username: 'Adam',    password: '6205', role: 'USER',  updatedBy: 'admin1',  updatedAt: '18-May-2026 02:35:35 PM' },
+  { id: 4, username: 'Rod',     password: '6205', role: 'USER',  updatedBy: 'admin1',  updatedAt: '18-May-2026 02:35:45 PM' },
+  { id: 5, username: 'Charlie', password: '6205', role: 'USER',  updatedBy: 'admin1',  updatedAt: '18-May-2026 02:35:59 PM' },
+];
+
+let records = [
+  { id: 1, employeeName: 'harry houdini',  department: 'Driver',      designation: 'Terry Clowes',   incidentDate: '2026-05-05', misconductType: 'Attendance', description: '', actionTaken: 'Stage 1 - 6 Months', actionDate: '2026-05-18', hrResponsible: 'Chris Webber',  remark: '' },
+  { id: 2, employeeName: 'Mark Appleby',   department: 'Engineer',    designation: 'Rod MacKenzie',  incidentDate: '2026-05-01', misconductType: 'Conduct',    description: '', actionTaken: 'Caution - 6 Months', actionDate: '2026-05-18', hrResponsible: 'Liam Simmons',  remark: '' },
+  { id: 3, employeeName: 'Humpty Geegs',   department: 'Banks/Other', designation: 'Charlie Syrett', incidentDate: '2026-05-02', misconductType: 'Accident',   description: '', actionTaken: 'Stage 1 - 6 Months', actionDate: '2026-05-18', hrResponsible: 'Liam Simmons',  remark: '' },
+];
+
+let archivedRecords = [];
+
+let dropdownData = {
+  departments:    ['Driver', 'Banks/Other', 'Engineer', 'Manager'],
+  designations:   ['Terry Clowes', 'Adam Clark', 'Rod MacKenzie', 'Charlie Syrett'],
+  misconductTypes:['Attendance', 'Accident', 'Conduct', 'Passenger Injury', 'Harassment', 'Early Running'],
+  actionsTaken:   ['Stage 1 - 6 Months', 'Stage 2 - 9 Months', 'Stage 3 - 12 Months', 'Caution - 6 Months', 'Written Warning - 9 Months', 'FWW - 12 Months', 'Termination'],
+  hrResponsible:  ['Shelley Martin', 'Liam Simmons', 'Hannah George', 'Glenis Martin', 'Chris Webber'],
+};
+
+let settings = { allowUserEdit: true, allowUserDelete: false, autoArchive: true };
+
+let currentUser  = null;
+let sortColumn   = -1;
+let sortDirection = 'asc';
 
 // ── Check if configured ──
 const IS_CONFIGURED = CONFIG.AZURE_CLIENT_ID !== 'YOUR_CLIENT_ID_HERE';
@@ -1330,36 +1364,6 @@ const actionDurations = {
 // ============================================================
 //  DATA (defaults — overwritten by OneDrive on login)
 // ============================================================
-let users = [
-  { id: 1, username: 'Admin1',  password: 'abcd', role: 'ADMIN', updatedBy: 'Admin1',  updatedAt: '14-Jan-2024 09:10:22 AM' },
-  { id: 2, username: 'Terry',   password: '1206', role: 'USER',  updatedBy: 'admin1',  updatedAt: '18-May-2026 02:44:32 PM' },
-  { id: 3, username: 'Adam',    password: '6205', role: 'USER',  updatedBy: 'admin1',  updatedAt: '18-May-2026 02:35:35 PM' },
-  { id: 4, username: 'Rod',     password: '6205', role: 'USER',  updatedBy: 'admin1',  updatedAt: '18-May-2026 02:35:45 PM' },
-  { id: 5, username: 'Charlie', password: '6205', role: 'USER',  updatedBy: 'admin1',  updatedAt: '18-May-2026 02:35:59 PM' },
-];
-
-let records = [
-  { id: 1, employeeName: 'harry houdini',  department: 'Driver',      designation: 'Terry Clowes',   incidentDate: '2026-05-05', misconductType: 'Attendance', description: '', actionTaken: 'Stage 1 - 6 Months', actionDate: '2026-05-18', hrResponsible: 'Chris Webber',  remark: '' },
-  { id: 2, employeeName: 'Mark Appleby',   department: 'Engineer',    designation: 'Rod MacKenzie',  incidentDate: '2026-05-01', misconductType: 'Conduct',    description: '', actionTaken: 'Caution - 6 Months', actionDate: '2026-05-18', hrResponsible: 'Liam Simmons',  remark: '' },
-  { id: 3, employeeName: 'Humpty Geegs',   department: 'Banks/Other', designation: 'Charlie Syrett', incidentDate: '2026-05-02', misconductType: 'Accident',   description: '', actionTaken: 'Stage 1 - 6 Months', actionDate: '2026-05-18', hrResponsible: 'Liam Simmons',  remark: '' },
-];
-
-let archivedRecords = [];
-
-let dropdownData = {
-  departments:    ['Driver', 'Banks/Other', 'Engineer', 'Manager'],
-  designations:   ['Terry Clowes', 'Adam Clark', 'Rod MacKenzie', 'Charlie Syrett'],
-  misconductTypes:['Attendance', 'Accident', 'Conduct', 'Passenger Injury', 'Harassment', 'Early Running'],
-  actionsTaken:   ['Stage 1 - 6 Months', 'Stage 2 - 9 Months', 'Stage 3 - 12 Months', 'Caution - 6 Months', 'Written Warning - 9 Months', 'FWW - 12 Months', 'Termination'],
-  hrResponsible:  ['Shelley Martin', 'Liam Simmons', 'Hannah George', 'Glenis Martin', 'Chris Webber'],
-};
-
-let settings = { allowUserEdit: true, allowUserDelete: false, autoArchive: true };
-
-let currentUser  = null;
-let sortColumn   = -1;
-let sortDirection = 'asc';
-
 // ============================================================
 //  EXPIRY CALCULATION
 // ============================================================
